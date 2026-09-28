@@ -12,25 +12,31 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Initialize DB schema & defaults
-initDb();
-
-// Request logger for development / production
+// Request logger
 app.use((req, res, next) => {
   const start = Date.now();
+
   res.on('finish', () => {
-    const duration = Date.now() - start;
     if (process.env.NODE_ENV !== 'test') {
-      console.log(`[API] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`);
+      const duration = Date.now() - start;
+      console.log(
+        `[API] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${duration}ms)`
+      );
     }
   });
+
   next();
 });
 
-// API Routes
+// Initialize database
+if (process.env.NODE_ENV !== 'test') {
+  initDb();
+}
+
+// API routes
 app.use('/api', apiRoutes);
 
-// Health check endpoint
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
@@ -41,54 +47,76 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Serve frontend static assets from client/dist in production
+// Serve React frontend in production
 const clientDistPath = path.resolve(__dirname, '../client/dist');
+
 if (fs.existsSync(clientDistPath)) {
   app.use(express.static(clientDistPath));
 
-  // SPA fallback for non-API client routes
+  // React SPA fallback
   app.get('*', (req, res, next) => {
-    if (req.originalUrl.startsWith('/api')) {
+    if (req.path.startsWith('/api')) {
       return next();
     }
-    res.sendFile(path.join(clientDistPath, 'index.html'));
+
+    res.sendFile(
+      path.join(clientDistPath, 'index.html'),
+      (err) => {
+        if (err) next(err);
+      }
+    );
   });
 }
 
-// Fallback 404 for undefined /api routes (or when client/dist isn't built yet)
+// API and general 404
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: 'Endpoint not found' });
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found'
+  });
 });
 
-// Global error handler
+// Error handler
 app.use((err, req, res, next) => {
   console.error('[SERVER ERROR]', err);
-  res.status(500).json({ success: false, error: 'Internal server error: ' + err.message });
+
+  if (res.headersSent) {
+    return next(err);
+  }
+
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error'
+  });
 });
 
-// Only listen if not imported in tests
+// Start server
 if (process.env.NODE_ENV !== 'test') {
-  const server = app.listen(PORT, () => {
-    console.log(`===============================================`);
-    console.log(`🎮 MEMORY MATCH Server running on port ${PORT}`);
-    console.log(`📦 Database: SQLite (${DB_PATH})`);
-    console.log(`🌐 Mode: ${process.env.NODE_ENV || 'development'}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log('===============================================');
+    console.log(`MEMORY MATCH Server running on port ${PORT}`);
+    console.log(`Database: SQLite (${DB_PATH})`);
+    console.log(`Mode: ${process.env.NODE_ENV || 'development'}`);
+
     if (fs.existsSync(clientDistPath)) {
-      console.log(`🎨 Serving React frontend from client/dist`);
+      console.log('Serving React frontend from client/dist');
     } else {
-      console.log(`⚠️ Client dist not found at ${clientDistPath} (run 'npm run build' for production)`);
+      console.log('React frontend build not found');
     }
-    console.log(`===============================================`);
+
+    console.log('===============================================');
   });
 
-  process.on('SIGINT', () => {
-    console.log('\nShutting down server gracefully...');
+  const shutdown = () => {
+    console.log('Shutting down server...');
     server.close(() => {
       console.log('Server terminated.');
       process.exit(0);
     });
-  });
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 module.exports = app;
-
