@@ -1,12 +1,33 @@
-const { DatabaseSync } = require('node:sqlite');
+const Database = require('better-sqlite3');
 const path = require('node:path');
 const fs = require('node:fs');
 const { LEVEL_CONFIGS } = require('./scoring');
 
 // Resolve database storage location
-// Supports Render persistent disk mounted at /var/data or custom DATA_DIR / DB_PATH
-const resolvedDataDir = process.env.DATA_DIR || (fs.existsSync('/var/data') ? '/var/data' : __dirname);
-const DB_PATH = process.env.DB_PATH || path.join(resolvedDataDir, 'memory_match.db');
+// Configurable via DB_PATH, DATA_DIR, or defaults to /var/data/memory_game.db in production
+const isProduction = process.env.NODE_ENV === 'production';
+const defaultProdPath = '/var/data/memory_game.db';
+const defaultDevPath = path.join(__dirname, 'memory_game.db');
+
+let DB_PATH;
+if (process.env.DB_PATH) {
+  DB_PATH = process.env.DB_PATH;
+} else if (process.env.DATA_DIR) {
+  DB_PATH = path.join(process.env.DATA_DIR, 'memory_game.db');
+} else if (fs.existsSync('/var/data')) {
+  DB_PATH = defaultProdPath;
+} else if (isProduction && process.platform !== 'win32') {
+  try {
+    if (!fs.existsSync('/var/data')) {
+      fs.mkdirSync('/var/data', { recursive: true });
+    }
+    DB_PATH = defaultProdPath;
+  } catch (_) {
+    DB_PATH = defaultDevPath;
+  }
+} else {
+  DB_PATH = defaultDevPath;
+}
 
 // Ensure database directory exists
 const dbDir = path.dirname(DB_PATH);
@@ -14,16 +35,16 @@ if (!fs.existsSync(dbDir)) {
   fs.mkdirSync(dbDir, { recursive: true });
 }
 
-const db = new DatabaseSync(DB_PATH);
+const db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrency and performance
 try {
-  db.exec('PRAGMA journal_mode = WAL;');
-  db.exec('PRAGMA synchronous = NORMAL;');
+  db.pragma('journal_mode = WAL');
+  db.pragma('synchronous = NORMAL');
+  db.pragma('foreign_keys = ON');
 } catch (e) {
-  console.warn('Notice: SQLite PRAGMA journal_mode=WAL:', e.message);
+  console.warn('Notice: SQLite PRAGMA configuration:', e.message);
 }
-db.exec('PRAGMA foreign_keys = ON;');
 
 /**
  * Initialize all database tables and seed defaults

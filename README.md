@@ -91,12 +91,75 @@ Run backend integration and scoring tests:
 npm test
 ```
 
-### 4. Production Build & Preview
+### 4. Production Build & Local Run
+
+To build the client and start the production server locally:
 
 ```bash
-npm run build
+npm run render-build
 npm start
 ```
+
+---
+
+## ☁️ Deploying to Render
+
+You can deploy MEMORY MATCH to [Render](https://render.com) seamlessly as a **Node.js Web Service**.
+
+### Option A: Automatic Deployment via Render Blueprint (`render.yaml`)
+
+The repository includes a ready-to-use [`render.yaml`](file:///c:/Users/Yuktha/OneDrive/Desktop/memory_game/render.yaml) blueprint:
+
+1. Push your code to GitHub or GitLab.
+2. Log into [Render Dashboard](https://dashboard.render.com).
+3. Click **New +** and select **Blueprint**.
+4. Connect your repository. Render will automatically detect `render.yaml` and configure:
+   - Web Service name: `memory-match`
+   - Node runtime: `22.12.0`
+   - Build Command: `npm run render-build`
+   - Start Command: `npm start`
+   - Persistent Disk: `memory-match-data` mounted at `/var/data` (size: 1 GB)
+   - Environment variables: `NODE_ENV=production`, `DATA_DIR=/var/data`
+5. Click **Apply**.
+
+---
+
+### Option B: Manual Setup via Render Web Service UI
+
+1. **Create Web Service**:
+   - In Render, click **New +** > **Web Service**.
+   - Select your repository.
+
+2. **Configure Settings**:
+   - **Name**: `memory-match` (or your choice)
+   - **Language / Runtime**: `Node`
+   - **Branch**: `main` (or your default branch)
+   - **Root Directory**: leave blank (root of project)
+   - **Build Command**: `npm run render-build`
+   - **Start Command**: `npm start`
+   - **Instance Type**:
+     - *Starter* ($7/mo) if you want a Persistent Disk.
+     - *Free* if you do not need permanent disk persistence across app restarts.
+
+3. **Configure Environment Variables**:
+   Under **Environment Variables**, add:
+   - `NODE_ENV` = `production`
+   - `NODE_VERSION` = `22.12.0`
+   - `DATA_DIR` = `/var/data` (only if using a persistent disk)
+
+4. **Attach Persistent Disk (Recommended for SQLite persistence)**:
+   - Go to the **Disks** section in your Render Web Service.
+   - Click **Add Disk**.
+   - **Name**: `memory-match-data`
+   - **Mount Path**: `/var/data`
+   - **Size**: `1 GB` (sufficient for millions of match records)
+   - Save the disk settings.
+
+5. **Deploy**:
+   - Click **Create Web Service**.
+   - Once deployed, your app will be live at `https://your-service-name.onrender.com`.
+   - Both the React frontend and Express backend are served on the assigned URL and port (`process.env.PORT`).
+   - You can verify the health and database path by visiting `https://your-service-name.onrender.com/api/health`.
 
 ---
 

@@ -13,6 +13,7 @@
     "test": "node --test server/__tests__/*.test.js"
   },
   "dependencies": {
+    "better-sqlite3": "^13.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },
@@ -20,6 +21,6 @@
     "concurrently": "^9.1.2"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=20.0.0"
   }
 }

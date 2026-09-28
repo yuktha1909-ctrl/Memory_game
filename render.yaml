@@ -12,6 +12,8 @@ services:
         value: 22.12.0
       - key: DATA_DIR
         value: /var/data
+      - key: DB_PATH
+        value: /var/data/memory_game.db
     disk:
       name: memory-match-data
       mountPath: /var/data

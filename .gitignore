@@ -9,6 +9,7 @@ coverage/
 # Production build outputs
 dist/
 build/
+client/dist/
 
 # SQLite databases (local persistence)
 *.db
